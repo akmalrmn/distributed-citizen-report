@@ -77,6 +77,18 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:3002
+    container_name: citizen-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - report-service
+
 volumes:
   postgres_data:
 
