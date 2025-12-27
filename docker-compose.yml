@@ -82,7 +82,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:3002
+        - VITE_API_URL=
     container_name: citizen-frontend
     ports:
       - "3001:80"
