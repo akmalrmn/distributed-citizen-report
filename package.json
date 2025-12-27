@@ -1,0 +1,21 @@
+{
+  "name": "distributed-citizen-report",
+  "version": "1.0.0",
+  "description": "Distributed Citizen Reporting Application - IF4031 Tugas Besar",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:report": "npm run dev --workspace=services/report-service",
+    "dev:routing": "npm run dev --workspace=services/routing-service",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspaces",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": ["distributed-systems", "microservices", "citizen-report"],
+  "author": "IF4031 Team",
+  "license": "MIT"
+}

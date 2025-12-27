@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: citizen-postgres
+    environment:
+      POSTGRES_USER: citizen
+      POSTGRES_PASSWORD: citizen123
+      POSTGRES_DB: citizen_report
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/report-service/src/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citizen -d citizen_report"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: citizen-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: citizen
+      RABBITMQ_DEFAULT_PASS: citizen123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: citizen-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  report-service:
+    build:
+      context: ./services/report-service
+      dockerfile: Dockerfile
+    container_name: citizen-report-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=postgresql://citizen:citizen123@postgres:5432/citizen_report
+      - RABBITMQ_URL=amqp://citizen:citizen123@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/report-service/src:/app/src
+    command: npm run dev
+
+  routing-service:
+    build:
+      context: ./services/routing-service
+      dockerfile: Dockerfile
+    container_name: citizen-routing-service
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://citizen:citizen123@postgres:5432/citizen_report
+      - RABBITMQ_URL=amqp://citizen:citizen123@rabbitmq:5672
+      - DEPARTMENT=general
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./services/routing-service/src:/app/src
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: citizen-network
