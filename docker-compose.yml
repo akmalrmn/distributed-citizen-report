@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: citizen123
       POSTGRES_DB: citizen_report
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./services/report-service/src/db/migrations:/docker-entrypoint-initdb.d
@@ -38,7 +38,7 @@ services:
     image: redis:7-alpine
     container_name: citizen-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
