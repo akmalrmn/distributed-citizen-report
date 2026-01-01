@@ -1,5 +1,16 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+export interface Attachment {
+  id: string;
+  report_id: string;
+  filename: string;
+  stored_filename: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
 export interface Report {
   id: string;
   reporter_id: string | null;
@@ -17,6 +28,7 @@ export interface Report {
   upvote_count: number;
   created_at: string;
   updated_at: string;
+  attachments?: Attachment[];
 }
 
 export interface CreateReportData {
@@ -29,6 +41,7 @@ export interface CreateReportData {
     lng: number;
     address?: string;
   };
+  files?: File[];
 }
 
 export interface ReportsResponse {
@@ -49,12 +62,27 @@ export interface ReportResponse {
 }
 
 export async function createReport(data: CreateReportData): Promise<ReportResponse> {
+  const formData = new FormData();
+  
+  formData.append('title', data.title);
+  formData.append('description', data.description);
+  formData.append('category', data.category);
+  formData.append('visibility', data.visibility);
+  
+  if (data.location) {
+    formData.append('location', JSON.stringify(data.location));
+  }
+  
+  // Append files if present
+  if (data.files && data.files.length > 0) {
+    data.files.forEach(file => {
+      formData.append('files', file);
+    });
+  }
+
   const response = await fetch(`${API_URL}/api/reports`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+    body: formData,
   });
 
   if (!response.ok) {

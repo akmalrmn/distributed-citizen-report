@@ -23,6 +23,17 @@ export interface GetReportsOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface Attachment {
+  id: string;
+  report_id: string;
+  filename: string;
+  stored_filename: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: Date;
+}
+
 export interface Report {
   id: string;
   reporter_id: string | null;
@@ -38,6 +49,7 @@ export interface Report {
   upvote_count: number;
   created_at: Date;
   updated_at: Date;
+  attachments?: Attachment[];
 }
 
 export async function createReport(dto: CreateReportDto): Promise<Report> {
@@ -201,5 +213,51 @@ export async function updateReportStatus(
 
 export async function getDepartments(): Promise<Array<{ id: string; name: string; code: string }>> {
   const result = await pool.query('SELECT id, name, code FROM departments ORDER BY name');
+  return result.rows;
+}
+
+export async function createReportAttachments(
+  reportId: string,
+  files: Array<{
+    filename: string;
+    storedFilename: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+  }>
+): Promise<Attachment[]> {
+  if (files.length === 0) return [];
+
+  const values: (string | number)[] = [];
+  const placeholders: string[] = [];
+
+  files.forEach((file, index) => {
+    const offset = index * 5;
+    placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`);
+    values.push(
+      reportId,
+      file.filename,
+      file.storedFilename,
+      file.filePath,
+      file.fileSize,
+      file.mimeType
+    );
+  });
+
+  const result = await pool.query(
+    `INSERT INTO report_attachments (report_id, filename, stored_filename, file_path, file_size, mime_type)
+     VALUES ${placeholders.join(', ')}
+     RETURNING *`,
+    values
+  );
+
+  return result.rows;
+}
+
+export async function getReportAttachments(reportId: string): Promise<Attachment[]> {
+  const result = await pool.query(
+    'SELECT * FROM report_attachments WHERE report_id = $1 ORDER BY created_at',
+    [reportId]
+  );
   return result.rows;
 }

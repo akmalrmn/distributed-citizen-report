@@ -75,6 +75,13 @@ spec:
             port: 3002
           failureThreshold: 30
           periodSeconds: 10
+        volumeMounts:
+        - name: uploads-volume
+          mountPath: /app/uploads
+      volumes:
+      - name: uploads-volume
+        persistentVolumeClaim:
+          claimName: report-uploads-pvc
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

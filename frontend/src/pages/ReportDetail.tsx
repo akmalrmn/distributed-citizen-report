@@ -3,16 +3,20 @@ import { useParams, Link } from 'react-router-dom';
 import {
   getReportById,
   Report,
+  Attachment,
   getCategoryLabel,
   getStatusLabel,
   getStatusColor,
 } from '../api/reports';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export function ReportDetail() {
   const { id } = useParams<{ id: string }>();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -42,6 +46,20 @@ export function ReportDetail() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const isImage = (attachment: Attachment): boolean => {
+    return attachment.mime_type.startsWith('image/');
+  };
+
+  const getFileUrl = (attachment: Attachment): string => {
+    return `${API_URL}${attachment.file_path}`;
   };
 
   if (loading) {
@@ -98,6 +116,73 @@ export function ReportDetail() {
           <p className="text-gray-600 whitespace-pre-wrap">{report.description}</p>
         </div>
 
+        {report.attachments && report.attachments.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-3">
+              Attachments ({report.attachments.length})
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {report.attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="border rounded-lg overflow-hidden bg-gray-50"
+                >
+                  {isImage(attachment) ? (
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => setLightboxImage(getFileUrl(attachment))}
+                    >
+                      <img
+                        src={getFileUrl(attachment)}
+                        alt={attachment.filename}
+                        className="w-full h-32 object-cover hover:opacity-90 transition-opacity"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-red-50 flex items-center justify-center">
+                      <div className="text-center">
+                        <svg
+                          className="mx-auto h-10 w-10 text-red-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-xs font-medium text-red-600 mt-1">PDF</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-2">
+                    <p className="text-xs font-medium text-gray-700 truncate">
+                      {attachment.filename}
+                    </p>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-500">
+                        {formatFileSize(attachment.file_size)}
+                      </span>
+                      <a
+                        href={getFileUrl(attachment)}
+                        download={attachment.filename}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {report.department_name && (
           <div className="mb-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="text-lg font-semibold text-gray-700 mb-1">
@@ -139,6 +224,35 @@ export function ReportDetail() {
           </div>
         </div>
       </div>
+
+      {/* Lightbox for images */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+            >
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <img
+              src={lightboxImage}
+              alt="Full size"
+              className="max-w-full max-h-[90vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

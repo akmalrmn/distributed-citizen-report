@@ -1,10 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { createReport, getReports, getReportById, updateReportStatus } from '../services/reportService';
+import { createReport, getReports, getReportById, updateReportStatus, createReportAttachments, getReportAttachments } from '../services/reportService';
+import { upload, UPLOAD_DIR } from '../services/uploadConfig';
+import path from 'path';
+import express from 'express';
 
 export const reportRoutes = Router();
 
-// POST /api/reports - Create a new report
-reportRoutes.post('/', async (req: Request, res: Response) => {
+reportRoutes.use('/uploads', express.static(UPLOAD_DIR));
+
+// POST /api/reports - Create a new report with optional file attachments
+reportRoutes.post('/', upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const { title, description, category, visibility, reporterId, location } = req.body;
 
@@ -34,18 +39,44 @@ reportRoutes.post('/', async (req: Request, res: Response) => {
       });
     }
 
+    // Parse location if it's a string (from FormData)
+    let parsedLocation = location;
+    if (typeof location === 'string') {
+      try {
+        parsedLocation = JSON.parse(location);
+      } catch {
+        parsedLocation = undefined;
+      }
+    }
+
     const report = await createReport({
       title,
       description,
       category,
       visibility: visibility || 'public',
       reporterId,
-      location
+      location: parsedLocation
     });
+
+    // Handle file attachments if present
+    const files = req.files as Express.Multer.File[] | undefined;
+    let attachments: Awaited<ReturnType<typeof createReportAttachments>> = [];
+
+    if (files && files.length > 0) {
+      const fileData = files.map(file => ({
+        filename: file.originalname,
+        storedFilename: file.filename,
+        filePath: `/api/reports/uploads/${file.filename}`,
+        fileSize: file.size,
+        mimeType: file.mimetype
+      }));
+
+      attachments = await createReportAttachments(report.id, fileData);
+    }
 
     res.status(201).json({
       success: true,
-      data: report,
+      data: { ...report, attachments },
       message: 'Report created successfully'
     });
   } catch (error) {
@@ -101,9 +132,12 @@ reportRoutes.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Report not found' });
     }
 
+    // Fetch attachments for this report
+    const attachments = await getReportAttachments(id);
+
     res.json({
       success: true,
-      data: report
+      data: { ...report, attachments }
     });
   } catch (error) {
     console.error('Error fetching report:', error);

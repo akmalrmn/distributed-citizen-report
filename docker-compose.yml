@@ -55,6 +55,8 @@ services:
       - PORT=3002
       - DATABASE_URL=postgresql://citizen:citizen123@postgres:5432/citizen_report
       - RABBITMQ_URL=amqp://citizen:citizen123@rabbitmq:5672
+    volumes:
+      - report_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +93,7 @@ services:
 
 volumes:
   postgres_data:
+  report_uploads:
 
 networks:
   default:
