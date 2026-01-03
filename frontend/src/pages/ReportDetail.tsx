@@ -218,6 +218,10 @@ export function ReportDetail() {
               <span className="font-medium">Report ID:</span>{' '}
               <code className="bg-gray-100 px-1 rounded">{report.id}</code>
             </div>
+            {report.reporter_username && <div>
+              <span className="font-medium">Reporter Name:</span>{' '}
+              {report.reporter_username}
+            </div>}
             <div>
               <span className="font-medium">Upvotes:</span> {report.upvote_count}
             </div>

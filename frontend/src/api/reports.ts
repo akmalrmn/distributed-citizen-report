@@ -28,6 +28,7 @@ export interface Report {
   upvote_count: number;
   created_at: string;
   updated_at: string;
+  reporter_username: string;
   attachments?: Attachment[];
 }
 
@@ -36,6 +37,7 @@ export interface CreateReportData {
   description: string;
   category: string;
   visibility: string;
+  reporter_id: string
   location?: {
     lat: number;
     lng: number;
@@ -68,6 +70,7 @@ export async function createReport(data: CreateReportData): Promise<ReportRespon
   formData.append('description', data.description);
   formData.append('category', data.category);
   formData.append('visibility', data.visibility);
+  formData.append('reporterId', data.reporter_id);
   
   if (data.location) {
     formData.append('location', JSON.stringify(data.location));
@@ -107,6 +110,34 @@ export async function getReports(params?: {
   if (params?.category) searchParams.set('category', params.category);
 
   const url = `${API_URL}/api/reports${searchParams.toString() ? `?${searchParams}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch reports');
+  }
+
+  return response.json();
+}
+
+export async function getPrivateReports(params?: {
+  page?: number;
+  limit?: number;
+  reporterId?: string;
+  role?: string;
+  status?: string;
+  category?: string;
+}): Promise<ReportsResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.reporterId) searchParams.set('reporterId', params.reporterId);
+  if (params?.role) searchParams.set('role', params.role);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.category) searchParams.set('category', params.category);
+
+  const url = `${API_URL}/api/reports/private${searchParams.toString() ? `?${searchParams}` : ''}`;
 
   const response = await fetch(url);
 

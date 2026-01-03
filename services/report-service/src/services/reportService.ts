@@ -23,6 +23,17 @@ export interface GetReportsOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface GetPrivateReportsOptions {
+  page: number;
+  limit: number;
+  reporterId: string;
+  role: string;
+  status?: string;
+  category?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface Attachment {
   id: string;
   report_id: string;
@@ -67,7 +78,7 @@ export async function createReport(dto: CreateReportDto): Promise<Report> {
       description,
       category,
       visibility,
-      visibility === 'anonymous' ? null : (reporterId || null),
+      reporterId,
       location?.lat || null,
       location?.lng || null,
       location?.address || null
@@ -140,13 +151,90 @@ export async function getReports(opts: GetReportsOptions): Promise<{
   };
 }
 
-export async function getReportById(id: string): Promise<Report | null> {
+export async function getPrivateReports(opts: GetPrivateReportsOptions): Promise<{
+  data: Report[];
+  page: number;
+  limit: number;
+  total: number;
+}> {
+  const { page, limit, reporterId, role, status, category, sortBy = 'created_at', sortOrder = 'desc' } = opts;
+  const offset = (page - 1) * limit;
+
+  let query: string;
+  let countQuery: string;
+  let params: (string | number)[];
+  let countParams: (string | number)[];
+
+  // Build dynamic query
+  if (role === 'Warga') {
+    query = 'SELECT * FROM reports WHERE (visibility = $1 OR visibility = $3) AND reporter_id = $2';
+    countQuery = 'SELECT COUNT(*) FROM reports WHERE (visibility = $1 OR visibility = $3) AND reporter_id = $2'
+    params = ['private', reporterId, 'anonymous'];
+    countParams = ['private', reporterId, 'anonymous'];
+  } else {
+    const roleIdentifier: string[] = role.split(' ');
+    const department: string = roleIdentifier[1].toLowerCase();
+    query = 'SELECT * FROM reports WHERE category = $1 AND (visibility = $2 OR visibility = $3)';
+    countQuery = 'SELECT COUNT(*) FROM reports WHERE category = $1 AND (visibility = $2 OR visibility = $3)';
+    params = [department, 'private', 'anonymous'];
+    countParams = [department, 'private', 'anonymous'];
+  }
+
+  if (status) {
+    params.push(status);
+    countParams.push(status);
+    query += ` AND status = $${params.length}`;
+    countQuery += ` AND status = $${countParams.length}`;
+  }
+
+  if (category) {
+    params.push(category);
+    countParams.push(category);
+    query += ` AND category = $${params.length}`;
+    countQuery += ` AND category = $${countParams.length}`;
+  }
+
+  // Validate sortBy to prevent SQL injection
+  const validSortColumns = ['created_at', 'updated_at', 'title', 'status', 'upvote_count'];
+  const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+  const safeSortOrder = sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+  query += ` ORDER BY ${safeSortBy} ${safeSortOrder}`;
+  query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  params.push(limit, offset);
+
+  const [dataResult, countResult] = await Promise.all([
+    pool.query(query, params),
+    pool.query(countQuery, countParams)
+  ]);
+
+  return {
+    data: dataResult.rows,
+    page,
+    limit,
+    total: parseInt(countResult.rows[0].count, 10)
+  };
+}
+
+export async function getReportById(id: string, currentUserId?: string): Promise<any | null> {
   const result = await pool.query(
-    `SELECT r.*, d.name as department_name, d.code as department_code
+    `SELECT 
+        r.*,
+        CASE 
+          WHEN r.visibility = 'anonymous' AND (r.reporter_id != $2 OR $2 IS NULL) THEN NULL 
+          ELSE r.reporter_id 
+        END as reporter_id,
+        CASE 
+          WHEN r.visibility = 'anonymous' AND (r.reporter_id != $2 OR $2 IS NULL) THEN 'Anonymous'
+          ELSE a.username 
+        END as reporter_username,
+        d.name as department_name, 
+        d.code as department_code
      FROM reports r
      LEFT JOIN departments d ON r.assigned_department_id = d.id
+     LEFT JOIN accounts a ON r.reporter_id = a.id
      WHERE r.id = $1`,
-    [id]
+    [id, currentUserId]
   );
 
   return result.rows[0] || null;

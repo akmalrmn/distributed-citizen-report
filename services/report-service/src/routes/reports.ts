@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { createReport, getReports, getReportById, updateReportStatus, createReportAttachments, getReportAttachments } from '../services/reportService';
+import { createReport, getReports, getReportById, updateReportStatus, createReportAttachments, getReportAttachments, getPrivateReports } from '../services/reportService';
 import { upload, UPLOAD_DIR } from '../services/uploadConfig';
 import path from 'path';
 import express from 'express';
@@ -48,6 +48,8 @@ reportRoutes.post('/', upload.array('files', 5), async (req: Request, res: Respo
         parsedLocation = undefined;
       }
     }
+
+    const reporter_actual = visibility !== 'anonymous' ? reporterId : ''
 
     const report = await createReport({
       title,
@@ -122,11 +124,53 @@ reportRoutes.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/reports/private - Get all private reports with pagination and filtering
+reportRoutes.get('/private', async (req: Request, res: Response) => {
+  try {
+    const {
+      page = '1',
+      limit = '10',
+      reporterId,
+      role,
+      status,
+      category,
+      sortBy = 'created_at',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const reports = await getPrivateReports({
+      page: parseInt(page as string, 10),
+      limit: parseInt(limit as string, 10),
+      reporterId: reporterId as string,
+      role: role as string,
+      status: status as string | undefined,
+      category: category as string | undefined,
+      sortBy: sortBy as string,
+      sortOrder: sortOrder as 'asc' | 'desc'
+    });
+
+    res.json({
+      success: true,
+      data: reports.data,
+      pagination: {
+        page: reports.page,
+        limit: reports.limit,
+        total: reports.total,
+        totalPages: Math.ceil(reports.total / reports.limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
 // GET /api/reports/:id - Get a specific report by ID
 reportRoutes.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const report = await getReportById(id);
+    const currentUserId = req.session?.userId;
+    const report = await getReportById(id, currentUserId);
 
     if (!report) {
       return res.status(404).json({ error: 'Report not found' });

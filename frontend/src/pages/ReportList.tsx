@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getReports,
+  getPrivateReports,
   Report,
   getCategoryLabel,
   getStatusLabel,
   getStatusColor,
 } from '../api/reports';
+import { useUser } from '../context/UserContext';
 
 export function ReportList() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -16,20 +18,35 @@ export function ReportList() {
   const [totalPages, setTotalPages] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     fetchReports();
-  }, [page, categoryFilter, statusFilter]);
+  }, [page, categoryFilter, statusFilter, isPrivate]);
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const response = await getReports({
+      const fetchOptions = {
         page,
         limit: 10,
         category: categoryFilter || undefined,
         status: statusFilter || undefined,
-      });
+      };
+
+      let response;
+
+      if (isPrivate) {
+        response = await getPrivateReports({
+          ...fetchOptions,
+          reporterId: user?.userId,
+          role: user?.role,
+        });
+      } else {
+        response = await getReports(fetchOptions);
+      }
+
       setReports(response.data);
       setTotalPages(response.pagination.totalPages);
       setError(null);
@@ -53,7 +70,7 @@ export function ReportList() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Public Reports</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{isPrivate ? 'Private Reports' : 'Public Reports'}</h1>
         <Link
           to="/submit"
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -62,8 +79,30 @@ export function ReportList() {
         </Link>
       </div>
 
+
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex gap-4">
+        <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border">
+          <span className={`text-sm font-medium ${!isPrivate ? 'text-blue-600' : 'text-gray-400'}`}>Public</span>
+          
+          <button
+            onClick={() => {
+              setIsPrivate(!isPrivate);
+              setPage(1); // Reset to page 1 when switching views
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              isPrivate ? 'bg-blue-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                isPrivate ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+          
+          <span className={`text-sm font-medium ${isPrivate ? 'text-blue-600' : 'text-gray-400'}`}>Private</span>
+        </div>
         <div>
           <label className="block text-sm text-gray-600 mb-1">Category</label>
           <select

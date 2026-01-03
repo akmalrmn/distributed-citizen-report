@@ -1,15 +1,42 @@
 import express from 'express';
+import session from 'express-session';
 import cors from 'cors';
 import { reportRoutes } from './routes/reports';
 import { connectDatabase } from './db/connection';
 import { connectRabbitMQ } from './services/messagePublisher';
+import { accountRoutes } from './routes/accounts';
+
+const API_URL = process.env.VITE_API_URL || '';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Trust Proxy
+app.set('trust proxy', 1);
+
 // Middleware
-app.use(cors());
+app.use(cors({origin: API_URL, credentials: true}));
 app.use(express.json());
+
+// Setup Redis
+// const redisClient = createClient({ url: process.env.REDIS_URL });
+// redisClient.connect().catch(console.error)
+
+// Session Middleware
+app.use(
+  session({
+    name: 'citizen.sid',
+    secret: process.env.SESSION_SECRET || 'dev-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24 // 1 day
+    }
+  })
+);
 
 // Health endpoints for Kubernetes probes
 app.get('/health', (_, res) => {
@@ -35,6 +62,7 @@ report_service_up 1
 
 // API routes
 app.use('/api/reports', reportRoutes);
+app.use('/api/auth', accountRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

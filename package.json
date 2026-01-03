@@ -15,7 +15,23 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down"
   },
-  "keywords": ["distributed-systems", "microservices", "citizen-report"],
+  "keywords": [
+    "distributed-systems",
+    "microservices",
+    "citizen-report"
+  ],
   "author": "IF4031 Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "connect-redis": "^9.0.0",
+    "express-session": "^1.18.2",
+    "redis": "^5.10.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^25.0.3"
+  }
 }

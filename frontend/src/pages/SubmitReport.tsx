@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createReport, CreateReportData } from '../api/reports';
+import { useUser } from '../context/UserContext';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES = 5;
@@ -14,12 +15,14 @@ export function SubmitReport() {
   const [success, setSuccess] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const { user}  = useUser();
 
   const [form, setForm] = useState<Omit<CreateReportData, 'files'>>({
     title: '',
     description: '',
     category: 'other',
     visibility: 'public',
+    reporter_id: user?.userId ?? ''
   });
 
   const handleChange = (
@@ -114,6 +117,7 @@ export function SubmitReport() {
         description: '',
         category: 'other',
         visibility: 'public',
+        reporter_id: user?.userId ?? ''
       });
       setSelectedFiles([]);
 
