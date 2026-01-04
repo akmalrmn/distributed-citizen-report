@@ -11,3 +11,8 @@ data:
   POSTGRES_HOST: "postgres-service"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "citizen_report"
+  REDIS_URL: "redis://redis-service:6379"
+  SESSION_COOKIE_SECURE: "true"
+  SLA_HOURS: "48"
+  ESCALATION_HOURS: "24"
+  ESCALATION_INTERVAL_MS: "600000"

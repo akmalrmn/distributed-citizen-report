@@ -6,6 +6,10 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      '/api/notifications': {
+        target: 'http://localhost:3003',
+        changeOrigin: true
+      },
       '/api': {
         target: 'http://localhost:3002',
         changeOrigin: true

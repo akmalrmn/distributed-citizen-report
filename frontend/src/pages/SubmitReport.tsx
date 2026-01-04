@@ -24,12 +24,19 @@ export function SubmitReport() {
     visibility: 'public',
     reporter_id: user?.userId ?? ''
   });
+  const [locationForm, setLocationForm] = useState({
+    address: ''
+  });
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocationForm({ address: e.target.value });
   };
 
   const validateFile = (file: File): string | null => {
@@ -107,8 +114,12 @@ export function SubmitReport() {
     setError(null);
 
     try {
+      const addressValue = locationForm.address.trim();
+      const location = addressValue ? { address: addressValue } : undefined;
+
       const response = await createReport({
         ...form,
+        location,
         files: selectedFiles.length > 0 ? selectedFiles : undefined,
       });
       setSuccess(true);
@@ -118,6 +129,9 @@ export function SubmitReport() {
         category: 'other',
         visibility: 'public',
         reporter_id: user?.userId ?? ''
+      });
+      setLocationForm({
+        address: ''
       });
       setSelectedFiles([]);
 
@@ -218,6 +232,20 @@ export function SubmitReport() {
               <option value="anonymous">Anonymous</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Location (optional)
+          </label>
+          <input
+            type="text"
+            name="address"
+            value={locationForm.address}
+            onChange={handleLocationChange}
+            placeholder="Address or landmark"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         {/* File Upload Section */}

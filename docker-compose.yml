@@ -55,12 +55,45 @@ services:
       - PORT=3002
       - DATABASE_URL=postgresql://citizen:citizen123@postgres:5432/citizen_report
       - RABBITMQ_URL=amqp://citizen:citizen123@rabbitmq:5672
+      - REDIS_URL=redis://redis:6379
+      - SESSION_SECRET=aat
+      - ANON_REPORT_SECRET=aat
+      - SESSION_COOKIE_SECURE=false
+      - SLA_HOURS=48
+      - ESCALATION_HOURS=24
+      - ESCALATION_INTERVAL_MS=600000
     volumes:
       - report_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: citizen-notification-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - DATABASE_URL=postgresql://citizen:citizen123@postgres:5432/citizen_report
+      - RABBITMQ_URL=amqp://citizen:citizen123@rabbitmq:5672
+      - REDIS_URL=redis://redis:6379
+      - SESSION_SECRET=aat
+      - ANON_REPORT_SECRET=aat
+      - SESSION_COOKIE_SECURE=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   routing-service:
@@ -90,6 +123,7 @@ services:
       - "3001:80"
     depends_on:
       - report-service
+      - notification-service
 
 volumes:
   postgres_data:

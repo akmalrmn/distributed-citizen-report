@@ -7,6 +7,8 @@ import {
   getCategoryLabel,
   getStatusLabel,
   getStatusColor,
+  upvoteReport,
+  removeUpvote,
 } from '../api/reports';
 import { useUser } from '../context/UserContext';
 
@@ -19,6 +21,7 @@ export function ReportList() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { user } = useUser();
 
   useEffect(() => {
@@ -65,6 +68,27 @@ export function ReportList() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const handleUpvote = async (report: Report) => {
+    const hasUpvoted = Boolean(report.has_upvoted);
+    try {
+      const response = hasUpvoted ? await removeUpvote(report.id) : await upvoteReport(report.id);
+      setReports((prev) =>
+        prev.map((item) =>
+          item.id === report.id
+            ? {
+                ...item,
+                upvote_count: response.data.upvote_count,
+                has_upvoted: !hasUpvoted
+              }
+            : item
+        )
+      );
+      setActionError(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update upvote');
+    }
   };
 
   return (
@@ -137,6 +161,7 @@ export function ReportList() {
             <option value="routed">Routed</option>
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
 
@@ -150,6 +175,10 @@ export function ReportList() {
 
       {error && (
         <div className="bg-red-100 text-red-700 p-4 rounded mb-6">{error}</div>
+      )}
+
+      {actionError && (
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-6">{actionError}</div>
       )}
 
       {loading ? (
@@ -168,27 +197,44 @@ export function ReportList() {
         <>
           <div className="space-y-4">
             {reports.map((report) => (
-              <Link
+              <div
                 key={report.id}
-                to={`/report/${report.id}`}
-                className="block bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
+                <div className="flex justify-between items-start gap-4">
+                  <Link
+                    to={`/report/${report.id}`}
+                    className="flex-1 min-w-0"
+                  >
                     <h2 className="text-lg font-semibold text-gray-800 mb-1">
                       {report.title}
                     </h2>
                     <p className="text-gray-600 text-sm line-clamp-2">
                       {report.description}
                     </p>
+                  </Link>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
+                        report.status
+                      )}`}
+                    >
+                      {getStatusLabel(report.status)}
+                    </span>
+                    {!isPrivate && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpvote(report)}
+                        className={`px-2.5 py-1 rounded-md border text-xs font-medium ${
+                          report.has_upvoted
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-blue-600 border-blue-300'
+                        }`}
+                      >
+                        {report.has_upvoted ? 'Upvoted' : 'Upvote'} ({report.upvote_count})
+                      </button>
+                    )}
                   </div>
-                  <span
-                    className={`ml-4 px-2 py-1 text-xs rounded-full ${getStatusColor(
-                      report.status
-                    )}`}
-                  >
-                    {getStatusLabel(report.status)}
-                  </span>
                 </div>
                 <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
                   <span className="bg-gray-100 px-2 py-0.5 rounded">
@@ -201,7 +247,7 @@ export function ReportList() {
                     </span>
                   )}
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
 

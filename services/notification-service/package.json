@@ -1,7 +1,7 @@
 {
-  "name": "report-service",
+  "name": "notification-service",
   "version": "1.0.0",
-  "description": "Report Service - handles citizen report CRUD operations",
+  "description": "Notification Service - consumes notification events and serves notification APIs",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -14,11 +14,8 @@
     "pg": "^8.11.3",
     "amqplib": "^0.10.3",
     "dotenv": "^16.3.1",
-    "uuid": "^9.0.0",
-    "multer": "^1.4.5-lts.1",
-    "bcryptjs": "^2.4.3",
-    "connect-redis": "^9.0.0",
     "express-session": "^1.17.3",
+    "connect-redis": "^9.0.0",
     "redis": "^5.10.0"
   },
   "devDependencies": {
@@ -27,11 +24,8 @@
     "@types/pg": "^8.10.9",
     "@types/amqplib": "^0.10.4",
     "@types/node": "^20.10.0",
-    "@types/uuid": "^9.0.7",
-    "@types/multer": "^1.4.11",
+    "@types/express-session": "^1.17.10",
     "typescript": "^5.3.2",
-    "ts-node-dev": "^2.0.0",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/express-session": "^1.17.10"
+    "ts-node-dev": "^2.0.0"
   }
 }

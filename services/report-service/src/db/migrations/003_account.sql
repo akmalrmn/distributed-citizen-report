@@ -17,3 +17,4 @@ INSERT INTO accounts (email, username, password_hash, role) VALUES ('cleanliness
 INSERT INTO accounts (email, username, password_hash, role) VALUES ('health_dept@mail.com', 'health_dept', '$2a$12$0FpWyzyGkt6x8q4SkaUjI.vjG9XpomDtPf8hjnCUClz2iiYExohcC', 'Department Health');
 INSERT INTO accounts (email, username, password_hash, role) VALUES ('infrastructure_dept@mail.com', 'infrastructure_dept', '$2a$12$0FpWyzyGkt6x8q4SkaUjI.vjG9XpomDtPf8hjnCUClz2iiYExohcC', 'Department Infrastructure');
 INSERT INTO accounts (email, username, password_hash, role) VALUES ('others_dept@mail.com', 'others_dept', '$2a$12$0FpWyzyGkt6x8q4SkaUjI.vjG9XpomDtPf8hjnCUClz2iiYExohcC', 'Department Other');
+INSERT INTO accounts (email, username, password_hash, role) VALUES ('admin@mail.com', 'admin', '$2a$12$0FpWyzyGkt6x8q4SkaUjI.vjG9XpomDtPf8hjnCUClz2iiYExohcC', 'Admin');

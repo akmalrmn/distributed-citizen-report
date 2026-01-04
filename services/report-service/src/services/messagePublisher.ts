@@ -1,4 +1,5 @@
 import amqp, { Channel, ChannelModel } from 'amqplib';
+import { randomUUID } from 'crypto';
 
 let connection: ChannelModel;
 let channel: Channel;
@@ -111,7 +112,9 @@ export async function publishReportStatusChanged(data: ReportStatusChangedEvent)
     return;
   }
 
+  const eventId = randomUUID();
   const message = {
+    eventId,
     eventType: 'REPORT_STATUS_CHANGED',
     timestamp: new Date().toISOString(),
     data

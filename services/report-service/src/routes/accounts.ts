@@ -1,11 +1,43 @@
 import { Router, Request, Response } from 'express';
 import { checkEmail, checkPassword, createAccount } from '../services/authentication';
+import { createRateLimiter } from '../middleware/rateLimit';
+import { logAuditEvent } from '../services/auditLog';
 
 console.log('accounts routes loaded');
 export const accountRoutes = Router()
 
+const loginLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: 'Too many login attempts, try again later'
+});
+
+const registerLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: 'Too many registration attempts, try again later'
+});
+
+function regenerateSession(req: Request): Promise<void> {
+    return new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+            if (err) return reject(err);
+            resolve();
+        });
+    });
+}
+
+function saveSession(req: Request): Promise<void> {
+    return new Promise((resolve, reject) => {
+        req.session.save((err) => {
+            if (err) return reject(err);
+            resolve();
+        });
+    });
+}
+
 // Login endpoint
-accountRoutes.post('/login', async (req: Request, res: Response) => {
+accountRoutes.post('/login', loginLimiter, async (req: Request, res: Response) => {
     try {
         const { email, password, username } = req.body;
 
@@ -47,9 +79,24 @@ accountRoutes.post('/login', async (req: Request, res: Response) => {
             });
         }
 
+        await regenerateSession(req);
         req.session.userId = user.id;
         req.session.username = user.username;
         req.session.role = user.role;
+        await saveSession(req);
+
+        await logAuditEvent({
+            actorId: user.id,
+            action: 'login',
+            targetType: 'account',
+            targetId: user.id,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent') || undefined,
+            metadata: {
+                role: user.role,
+                username: user.username
+            }
+        });
 
         return res.status(200).json({
             success: true
@@ -61,7 +108,7 @@ accountRoutes.post('/login', async (req: Request, res: Response) => {
 })
 
 // Register endpoint
-accountRoutes.post('/register', async (req: Request, res: Response) => {
+accountRoutes.post('/register', registerLimiter, async (req: Request, res: Response) => {
     try {
         const { email, password, username } = req.body;
 
@@ -80,9 +127,11 @@ accountRoutes.post('/register', async (req: Request, res: Response) => {
 
         const result = await createAccount({email, password, username})
 
+        await regenerateSession(req);
         req.session.userId = result.id;
         req.session.username = result.username;
         req.session.role = result.role;
+        await saveSession(req);
 
         return res.status(200).json({
             success: true

@@ -1,32 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: report-service
+  name: notification-service
   namespace: citizen-report
   labels:
-    app: report-service
+    app: notification-service
     tier: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: report-service
+      app: notification-service
   template:
     metadata:
       labels:
-        app: report-service
+        app: notification-service
         tier: backend
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "3002"
-        prometheus.io/path: "/metrics"
     spec:
       containers:
-      - name: report-service
-        image: citizen-report/report-service:latest
+      - name: notification-service
+        image: citizen-report/notification-service:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 3002
+        - containerPort: 3003
           name: http
         env:
         - name: NODE_ENV
@@ -35,7 +31,7 @@ spec:
               name: app-config
               key: NODE_ENV
         - name: PORT
-          value: "3002"
+          value: "3003"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -56,21 +52,6 @@ spec:
             configMapKeyRef:
               name: app-config
               key: SESSION_COOKIE_SECURE
-        - name: SLA_HOURS
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: SLA_HOURS
-        - name: ESCALATION_HOURS
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: ESCALATION_HOURS
-        - name: ESCALATION_INTERVAL_MS
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: ESCALATION_INTERVAL_MS
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
@@ -83,15 +64,15 @@ spec:
               key: anon_report_secret
         resources:
           requests:
-            cpu: "100m"
-            memory: "128Mi"
+            cpu: "50m"
+            memory: "64Mi"
           limits:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: "200m"
+            memory: "256Mi"
         livenessProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3003
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -99,7 +80,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /ready
-            port: 3002
+            port: 3003
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
@@ -107,22 +88,6 @@ spec:
         startupProbe:
           httpGet:
             path: /health
-            port: 3002
+            port: 3003
           failureThreshold: 30
           periodSeconds: 10
-        volumeMounts:
-        - name: uploads-volume
-          mountPath: /app/uploads
-      volumes:
-      - name: uploads-volume
-        persistentVolumeClaim:
-          claimName: report-uploads-pvc
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  app: report-service
-              topologyKey: kubernetes.io/hostname
