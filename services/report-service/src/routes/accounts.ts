@@ -9,7 +9,14 @@ export const accountRoutes = Router()
 const loginLimiter = createRateLimiter({
     windowMs: 15 * 60 * 1000,
     max: 10,
-    message: 'Too many login attempts, try again later'
+    message: 'Too many login attempts, try again later',
+    keyGenerator: (req: Request) => {
+        const ip = req.ip || 'unknown';
+        const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+        const username = typeof req.body?.username === 'string' ? req.body.username.trim().toLowerCase() : '';
+        const identity = email || username || 'anonymous';
+        return `${ip}:${identity}`;
+    }
 });
 
 const registerLimiter = createRateLimiter({
