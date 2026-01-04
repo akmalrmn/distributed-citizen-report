@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminDepartmentSummaryItem, getAdminDepartmentSummary, getCategoryLabel, getEscalatedReports, Report, getStatusLabel, getStatusColor } from '../api/reports';
+import { AdminDepartmentSummaryItem, exportReports, getAdminDepartmentSummary, getCategoryLabel, getEscalatedReports, Report, getStatusLabel, getStatusColor } from '../api/reports';
 
 function getDepartmentLabel(category: string): string {
   const mapping: Record<string, string> = {
@@ -18,6 +18,8 @@ export function AdminDashboard() {
   const [escalatedReports, setEscalatedReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -42,6 +44,26 @@ export function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await exportReports();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExportError(null);
+    } catch (err) {
+      setExportError('Failed to export reports');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -65,13 +87,26 @@ export function AdminDashboard() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Admin Overview</h1>
-        <button
-          onClick={fetchSummary}
-          className="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-60"
+          >
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </button>
+          <button
+            onClick={fetchSummary}
+            className="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {exportError && (
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-6">{exportError}</div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Department Progress</h2>

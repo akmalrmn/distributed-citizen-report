@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { createReport, getReports, getReportById, updateReportStatus, createReportAttachments, getReportAttachments, getPrivateReports, getReportAccessInfo, getAttachmentByStoredFilename, addUpvote, removeUpvote, updateReport, isReportOwner, getDepartmentSummary, getAdminDepartmentSummary, getEscalatedReports } from '../services/reportService';
+import { createReport, getReports, getReportById, updateReportStatus, createReportAttachments, getReportAttachments, getPrivateReports, getReportAccessInfo, getAttachmentByStoredFilename, addUpvote, removeUpvote, updateReport, isReportOwner, getDepartmentSummary, getAdminDepartmentSummary, getEscalatedReports, getReportsForExport } from '../services/reportService';
 import { upload, UPLOAD_DIR } from '../services/uploadConfig';
 import path from 'path';
 import { requireAuth, requireAdmin, requireDepartmentOrAdmin, requireDepartmentRole } from '../middleware/auth';
@@ -238,6 +238,94 @@ reportRoutes.get('/admin/escalated', requireAuth, requireAdmin, async (req: Requ
   } catch (error) {
     console.error('Error fetching escalated reports:', error);
     res.status(500).json({ error: 'Failed to fetch escalated reports' });
+  }
+});
+
+// GET /api/reports/export - Export reports for department or admin (CSV)
+reportRoutes.get('/export', requireAuth, requireDepartmentOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { status, category } = req.query;
+    const isAdmin = isAdminRole(req.session.role);
+    const departmentCategory = getDepartmentCategoryFromRole(req.session.role);
+    const validCategories = ['crime', 'cleanliness', 'health', 'infrastructure', 'other'];
+    const validStatuses = ['submitted', 'routed', 'in_progress', 'resolved', 'escalated', 'cancelled'];
+
+    const effectiveCategory = isAdmin
+      ? (category as string | undefined)
+      : departmentCategory;
+
+    if (effectiveCategory && !validCategories.includes(effectiveCategory)) {
+      return res.status(400).json({ error: 'Invalid category', validCategories });
+    }
+
+    if (typeof status === 'string' && status.length > 0 && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status', validStatuses });
+    }
+
+    const reports = await getReportsForExport({
+      category: effectiveCategory || null,
+      status: typeof status === 'string' && status.length > 0 ? status : null
+    });
+
+    const headers = [
+      'id',
+      'title',
+      'description',
+      'category',
+      'visibility',
+      'status',
+      'department_name',
+      'department_code',
+      'reporter_username',
+      'location_address',
+      'created_at',
+      'updated_at'
+    ];
+
+    const escapeValue = (value: unknown): string => {
+      if (value === null || value === undefined) return '';
+      const text = String(value);
+      if (/[",\n\r]/.test(text)) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    };
+
+    const rows = reports.map((report) => {
+      const values = [
+        report.id,
+        report.title,
+        report.description,
+        report.category,
+        report.visibility,
+        report.status,
+        report.department_name,
+        report.department_code,
+        report.reporter_username,
+        report.location_address,
+        report.created_at,
+        report.updated_at
+      ];
+
+      return values.map((value) => {
+        if (value instanceof Date) {
+          return escapeValue(value.toISOString());
+        }
+        return escapeValue(value);
+      }).join(',');
+    });
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const datePart = new Date().toISOString().slice(0, 10);
+    const filenameCategory = effectiveCategory || 'all';
+    const filename = `reports-${filenameCategory}-${datePart}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Error exporting reports:', error);
+    res.status(500).json({ error: 'Failed to export reports' });
   }
 });
 

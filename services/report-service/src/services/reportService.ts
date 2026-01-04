@@ -669,6 +669,68 @@ export async function getDepartments(): Promise<Array<{ id: string; name: string
   return result.rows;
 }
 
+export interface ExportReportRow {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  visibility: string;
+  status: string;
+  department_name: string | null;
+  department_code: string | null;
+  reporter_username: string | null;
+  location_address: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function getReportsForExport(options: {
+  category?: string | null;
+  status?: string | null;
+}): Promise<ExportReportRow[]> {
+  const params: Array<string> = [];
+  const conditions: string[] = [];
+
+  if (options.category) {
+    params.push(options.category);
+    conditions.push(`r.category = $${params.length}::report_category`);
+  }
+
+  if (options.status) {
+    params.push(options.status);
+    conditions.push(`r.status = $${params.length}::report_status`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const result = await pool.query(
+    `SELECT
+        r.id,
+        r.title,
+        r.description,
+        r.category::text as category,
+        r.visibility::text as visibility,
+        r.status::text as status,
+        d.name as department_name,
+        d.code as department_code,
+        CASE
+          WHEN r.visibility = 'anonymous' THEN 'Anonymous'
+          ELSE a.username
+        END as reporter_username,
+        r.location_address,
+        r.created_at,
+        r.updated_at
+     FROM reports r
+     LEFT JOIN departments d ON r.assigned_department_id = d.id
+     LEFT JOIN accounts a ON r.reporter_id = a.id
+     ${whereClause}
+     ORDER BY r.created_at DESC`,
+    params
+  );
+
+  return result.rows;
+}
+
 export async function createReportAttachments(
   reportId: string,
   files: Array<{

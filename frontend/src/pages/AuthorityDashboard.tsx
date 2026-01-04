@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { DepartmentSummary, getDepartmentSummary } from '../api/reports';
+import { DepartmentSummary, exportReports, getDepartmentSummary } from '../api/reports';
 
 export function AuthorityDashboard() {
   const [summary, setSummary] = useState<DepartmentSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -24,6 +26,26 @@ export function AuthorityDashboard() {
     const interval = setInterval(fetchSummary, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await exportReports();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExportError(null);
+    } catch (err) {
+      setExportError('Failed to export reports');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -50,13 +72,26 @@ export function AuthorityDashboard() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Department Dashboard</h1>
-        <button
-          onClick={fetchSummary}
-          className="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-60"
+          >
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </button>
+          <button
+            onClick={fetchSummary}
+            className="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {exportError && (
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-6">{exportError}</div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow-sm">

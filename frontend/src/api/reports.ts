@@ -300,6 +300,32 @@ export async function getEscalatedReports(params?: {
   return response.json();
 }
 
+export async function exportReports(params?: { category?: string; status?: string }): Promise<{ blob: Blob; filename: string }> {
+  const searchParams = new URLSearchParams();
+  if (params?.category) searchParams.set('category', params.category);
+  if (params?.status) searchParams.set('status', params.status);
+
+  const url = `${API_URL}/api/reports/export${searchParams.toString() ? `?${searchParams}` : ''}`;
+  const response = await fetch(url, { credentials: 'include' });
+
+  if (!response.ok) {
+    throw new Error('Failed to export reports');
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get('content-disposition');
+  let filename = 'reports.csv';
+
+  if (disposition) {
+    const match = disposition.match(/filename="([^"]+)"/);
+    if (match?.[1]) {
+      filename = match[1];
+    }
+  }
+
+  return { blob, filename };
+}
+
 export function getCategoryLabel(category: string): string {
   const labels: Record<string, string> = {
     crime: 'Crime',
